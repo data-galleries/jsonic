@@ -1,0 +1,18 @@
+{
+	"value": "base",
+	"list": ["base"],
+	"dict": {
+		"base": "base1",
+		"value": "base1",
+		"list": ["base1"],
+		"dict": {
+			"base": "base2"
+		},
+		"ref": "sample-ref.json",
+		"py": "*.sample-builder.py#text"
+	},
+	"ref1": "*.sample-ref.json",
+	"base": "base"
+}
+
+

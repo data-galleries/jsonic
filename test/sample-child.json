@@ -1,0 +1,18 @@
+{
+	"*": "sample-base.json",
+	"value": "child",
+	"list": ["child"],
+	"dict": {
+		"child": "child1",
+		"value": "child1",
+		"list": ["child1"],
+		"dict": {
+			"child": "child2"
+		},
+		"ref": "*.sample-ref.json",
+		"py": "*.sample-builder.py#text"
+	},
+	"ref2": "*.sample-ref.json#ref1",
+	"py": "*.sample-builder.py#num",
+	"child": "child"
+}
