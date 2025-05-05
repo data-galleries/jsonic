@@ -15,8 +15,10 @@ from os.path import join as path_join, dirname, normpath
 import re
 import sys
 import importlib.util
-from luke_lib.dict_helpers import key_exists, override_merge, try_get
+from luke_lib.dict_helpers import override_merge, try_get
 import requests
+from jsonic.util import GetRefAndKey
+import types
 
 def RemoveComments(text):
     # Remove single-line comments
@@ -25,18 +27,31 @@ def RemoveComments(text):
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
     return text
 
-def ResolveItem(file, ref, config):
-    if file.endswith('.json'):
-        item = LoadConfigFromFile(file)
-        if ref != None:
-           return try_get(ref, item)
-        return item
-    if file.endswith('.py'):
-        module = ImportModuleFromPath(file, "build_module")
-        build_function = getattr(module, ref)
-        return build_function(config)
+def ResolveJsonLink(link, source):
+    ref, key = GetRefAndKey(link)
+    if ref.startswith("http://") or ref.startswith("https://"):
+        result = requests.get(ref).json()
+        item = LoadConfig(None, result)
+    else:
+        path = ResolveLocalPath(source, ref)
+        item = LoadConfigFromFile(path, link=True)
 
-def ResolvePath(source, path):
+    if key is None : return item
+    else : return try_get(key, item)
+
+def ResolvePythonLink(link, config):
+    ref, key = GetRefAndKey(link)
+    if ref.startswith("http://") or ref.startswith("https://"):
+        result = requests.get(ref).text
+        module = types.ModuleType("build_module")
+        exec(result, module.__dict__)
+    else:
+        module = ImportModuleFromPath(ref, "build_module")
+
+    build_function = getattr(module, key)
+    return build_function(config)
+
+def ResolveLocalPath(source, path):
     try:
         return normpath(path_join(dirname(source), path))
     except Exception as e:
@@ -50,63 +65,56 @@ def ResolveLinks(filename, config):
         if isinstance(val, dict):
             config[key] = ResolveLinks(filename, val)
 
-        # resolve any references - denoted by strings starting with '*.'
+        # resolve any json links - denoted by strings starting with '*.'
         if isinstance(val, str) and val.startswith("*."):
-            ref = None
-            s = val.split('#')
-            file = s[0][2:]
-            if len(s) == 2:
-                ref = s[1]
-            config[key] = ResolveItem(file, ref, config)
+            config[key] = ResolveJsonLink(val, filename)
+
+        # resolve any python links - denoted by strings starting with '!.'
+        if isinstance(val, str) and val.startswith("!."):
+            config[key] = ResolvePythonLink(val, config)
+
+    if "!" in config:
+        config = ResolvePythonLink(config["!"], config)
+        del config["!"]
 
     return config
 
 def LinkInheritance(filename, config):
+    diff = {}
     for key in config:
         val = config[key]
         if type(val) == str and val.startswith("*."):
-            ref = None
-            s = val.split('#')
-            file = s[0][2:]
-            if (len(s) == 2):
-                ref = s[1]
-            newPath = ResolvePath(filename, file)
+            ref, key = GetRefAndKey(val)
+            newPath = ResolveLocalPath(filename, ref)
             newValue = f"*.{newPath}"
-            if ref != None:
-                newValue += f"#{ref}"
-            config[key] = newValue
+            if key != None:
+                newValue += f"#{key}"
+            diff[key] = newValue
 
+    config = override_merge(config, diff)
     return config
 
 def LoadConfig(source, config):
     # if there is a base to inherit from, load it and then merge over it.
-    if key_exists("*", config):
+    if "*" in config:
         val = config['*']
-
-        if val.startswith("http://") or val.startswith("https://"):
-            result = requests.get(val).json()
-            base_config = LoadConfig("", result)
-            config = override_merge(config, base_config)
-            del config['*']
-
-        elif val.endswith('.json'):
-            basePath = config['*']
-            basePath = ResolvePath(source, basePath)
-            base_config = LoadConfigFromFile(basePath)
-            config = override_merge(config, base_config)
-            del config['*']
+        base_config = ResolveJsonLink(val, source)
+        config = override_merge(config, base_config)
+        del config['*']
 
     return config
 
-def LoadConfigFromFile(fileName):
-    with open(fileName, 'r') as file :
+def LoadConfigFromFile(source, link=False):
+    with open(source, 'r') as file :
         try:
             config = loadJson(file)
         except:
-            raise Exception(f"Error loading config file {fileName}")
+            raise Exception(f"Error loading config file {source}")
 
-    config = LinkInheritance(fileName, config)
-    return LoadConfig(fileName, config)
+    if link:
+        config = LinkInheritance(source, config)
+
+    return LoadConfig(source, config)
 
 def ImportModuleFromPath(file_path, module_name):
     # Load the module spec from the given file path
@@ -116,13 +124,12 @@ def ImportModuleFromPath(file_path, module_name):
     spec.loader.exec_module(module)
     return module
 
-def Load(filename):
-    if not filename.endswith('.json'):
-        filename = filename + '.json'
+def Load(source):
+    if not source.endswith('.json'):
+        source = source + '.json'
 
-    config = LoadConfigFromFile(filename)
-
-    return ResolveLinks(filename, config)
+    config = LoadConfigFromFile(source)
+    return ResolveLinks(source, config)
 
 if __name__ == "__main__":
     filename = normpath(sys.argv[1])

@@ -1,0 +1,9 @@
+setup.py
+jsonic/__init__.py
+jsonic/loader.py
+jsonic/util.py
+jsonic.egg-info/PKG-INFO
+jsonic.egg-info/SOURCES.txt
+jsonic.egg-info/dependency_links.txt
+jsonic.egg-info/requires.txt
+jsonic.egg-info/top_level.txt
