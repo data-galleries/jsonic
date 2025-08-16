@@ -8,8 +8,10 @@ A simple python library to support inheritable json structures.
 | Inherit | * : "filepath.json" |
 | HTTP Inherit | * : "https://example.com/config.json" |
 | Import Full Json | "x" : "*.filepath.json" |
-| Import Json Key | "x" : "*.filepath.json#key |
-| Python Build | "x" : "*.filepath.py#method |
+| Import Json Key | "x" : "*.filepath.json#key" |
+| HTTP Import Full Json | "x" : "*.https://example.com/config.json" |
+| HTTP Import Json Key | "x" : "*.https://example.com/config.json#key" |
+| Python Build | "x" : "*.filepath.py#method" |
 
 Merge behavior
 | type | behavior |
@@ -104,6 +106,18 @@ remote-config.json (hosted at https://example.com/remote-config.json)
 }
 ```
 
+remote-database.json (hosted at https://example.com/remote-database.json)
+```json
+{
+	"host": "db.example.com",
+	"port": 5432,
+	"credentials": {
+		"username": "admin",
+		"password": "secret"
+	}
+}
+```
+
 local-config.json
 ```json
 {
@@ -112,7 +126,9 @@ local-config.json
 	"features": {
 		"cache": true,
 		"newFeature": true
-	}
+	},
+	"dbHost": "*.https://example.com/remote-database.json#host",
+	"database": "*.https://example.com/remote-database.json#credentials"
 }
 ```
 
@@ -126,6 +142,11 @@ Result after processing:
 		"logging": true,
 		"cache": true,
 		"newFeature": true
+	},
+	"dbHost": "db.example.com",
+	"database": {
+		"username": "admin",
+		"password": "secret"
 	}
 }
 ```
