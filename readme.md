@@ -6,6 +6,7 @@ A simple python library to support inheritable json structures.
 | Operation | Syntax |
 | -- | -- |
 | Inherit | * : "filepath.json" |
+| HTTP Inherit | * : "https://example.com/config.json" |
 | Import Full Json | "x" : "*.filepath.json" |
 | Import Json Key | "x" : "*.filepath.json#key |
 | Python Build | "x" : "*.filepath.py#method |
@@ -18,6 +19,8 @@ Merge behavior
 |dict | recursive merge |
 
 ## Example
+
+### Local File Inheritance
 
 base.json
 ```json
@@ -82,5 +85,47 @@ result.json
 	"arr": [1, 3], // array concat base + child
 	"ref" : 2, // json key ref
 	"py" : "python value" // python build value
+}
+```
+
+### HTTP Inheritance
+
+You can inherit from remote JSON files using HTTP URLs:
+
+remote-config.json (hosted at https://example.com/remote-config.json)
+```json
+{
+	"apiUrl": "https://api.example.com",
+	"timeout": 5000,
+	"features": {
+		"logging": true,
+		"cache": false
+	}
+}
+```
+
+local-config.json
+```json
+{
+	"*": "https://example.com/remote-config.json",
+	"appName": "MyApp",
+	"features": {
+		"cache": true,
+		"newFeature": true
+	}
+}
+```
+
+Result after processing:
+```json
+{
+	"apiUrl": "https://api.example.com",
+	"timeout": 5000,
+	"appName": "MyApp",
+	"features": {
+		"logging": true,
+		"cache": true,
+		"newFeature": true
+	}
 }
 ```
