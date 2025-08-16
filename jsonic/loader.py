@@ -15,7 +15,7 @@ from os.path import join as path_join, dirname, normpath
 import re
 import sys
 import importlib.util
-from luke_lib.dict_helpers import key_exists, override_merge, try_get
+from pylib.dict_helpers import override_merge, try_get
 import requests
 
 def RemoveComments(text):
