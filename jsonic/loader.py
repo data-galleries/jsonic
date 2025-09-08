@@ -1,8 +1,8 @@
 #!python
 
 # build complete json dictionaries using an inheritance structure.
-# the key '#base' is used to denote inheritance.
-# resulting object contains a '#tree' key with inheritance structure.
+# the key '*' is used to denote inheritance.
+# resulting object contains a '*' key with inheritance structure.
 
 # values inherit as follows:
 # dict - override merge
@@ -29,7 +29,7 @@ def ResolveItem(file, ref, config):
     if file.endswith('.json'):
         item = LoadConfigFromFile(file)
         if ref != None:
-           return try_get(ref, item)
+           return try_get(item, ref)
         return item
     if file.endswith('.py'):
         module = ImportModuleFromPath(file, "build_module")
@@ -46,41 +46,25 @@ def ResolveLinks(filename, config):
     for key in list(config.keys()):
         val = config[key]
 
-        # recursive resolve dictionaries
+        # recurse into dicts first
         if isinstance(val, dict):
             config[key] = ResolveLinks(filename, val)
 
-        # resolve any references - denoted by strings starting with '*.'
+        # resolve references like "*.path#ref"
         if isinstance(val, str) and val.startswith("*."):
             ref = None
             s = val.split('#')
             file = s[0][2:]
             if len(s) == 2:
                 ref = s[1]
-            config[key] = ResolveItem(file, ref, config)
 
-    return config
-
-def LinkInheritance(filename, config):
-    for key in config:
-        val = config[key]
-        if type(val) == str and val.startswith("*."):
-            ref = None
-            s = val.split('#')
-            file = s[0][2:]
-            if (len(s) == 2):
-                ref = s[1]
-            newPath = ResolvePath(filename, file)
-            newValue = f"*.{newPath}"
-            if ref != None:
-                newValue += f"#{ref}"
-            config[key] = newValue
-
+            file_path = ResolvePath(filename, file)
+            config[key] = ResolveItem(file_path, ref, config)
     return config
 
 def LoadConfig(source, config):
     # if there is a base to inherit from, load it and then merge over it.
-    if key_exists("*", config):
+    if '*' in config:
         val = config['*']
 
         if val.startswith("http://") or val.startswith("https://"):
@@ -99,13 +83,12 @@ def LoadConfig(source, config):
     return config
 
 def LoadConfigFromFile(fileName):
-    with open(fileName, 'r') as file :
+    with open(fileName, 'r') as file:
         try:
             config = loadJson(file)
         except:
             raise Exception(f"Error loading config file {fileName}")
 
-    config = LinkInheritance(fileName, config)
     return LoadConfig(fileName, config)
 
 def ImportModuleFromPath(file_path, module_name):
